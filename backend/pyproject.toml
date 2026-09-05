@@ -31,7 +31,8 @@ dev = [
     "reportlab>=4.0.0",
 ]
 
-[tool.pytest.ini_options]
+[tool.setuptools.packages.find]
+include = ["app*"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
