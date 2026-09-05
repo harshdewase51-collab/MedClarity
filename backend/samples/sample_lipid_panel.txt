@@ -1,0 +1,9 @@
+﻿METROPOLIS DIAGNOSTICS & HEALTH LAB
+Patient: Synthetic Demo Patient | Date: 2026-08-20
+Doctor: Dr. S. Patel, MD
+
+COMPREHENSIVE LIPID PROFILE
+Total Cholesterol: 218 mg/dL (Reference: < 200 mg/dL)
+HDL Cholesterol: 56 mg/dL (Reference: > 50 mg/dL)
+LDL Cholesterol: 138 mg/dL (Reference: < 100 mg/dL)
+Triglycerides: 120 mg/dL (Reference: < 150 mg/dL)

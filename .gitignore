@@ -1,0 +1,73 @@
+﻿# ==========================================
+# MedClarity — Git Ignore Configuration
+# ==========================================
+
+# --- Environment & Secret Files ---
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# --- Python & Virtual Environments ---
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# --- Testing & Code Quality ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Database & Local Uploads ---
+*.db
+*.sqlite
+*.sqlite3
+backend/uploads/
+uploads/
+*.log
+
+# --- Node & Frontend ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Frontend Build Output ---
+dist/
+dist-ssr/
+build/
+*.local
+
+# --- Vite Cache ---
+.vite/
+
+# --- IDE & Editor Artifacts ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# --- Operating System Artifacts ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
