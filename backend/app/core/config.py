@@ -33,7 +33,8 @@ class Settings(BaseSettings):
 
     DISCLAIMER_TEXT: str = (
         "This tool helps explain medical reports in simple language. "
-        "It does not provide medical diagnosis or treatment advice."
+        "It is not a doctor and does not provide medical diagnosis or prescribe treatment. "
+        "Always consult with a qualified healthcare professional for medical decisions."
     )
 
     model_config = SettingsConfigDict(env_file=".env", extra="allow")

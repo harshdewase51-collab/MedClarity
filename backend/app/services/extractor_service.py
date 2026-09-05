@@ -12,7 +12,7 @@ class ExtractorService:
         
         # Metabolic & Blood Sugar
         "Fasting Blood Glucose", "Fasting Glucose", "Blood Glucose", "Glucose Fasting", "Glucose",
-        "HbA1c", "Glycated Hemoglobin", "Postprandial Glucose",
+        "HbA1c", "Glycated Hemoglobin", "Postprandial Glucose", "PPBS", "Random Blood Sugar",
         
         # Liver Function (LFT)
         "Alanine Aminotransferase", "ALT", "SGPT", "Aspartate Aminotransferase", "AST", "SGOT",
@@ -21,9 +21,9 @@ class ExtractorService:
         
         # Kidney Function (KFT / RFT)
         "Serum Creatinine", "Creatinine", "Blood Urea Nitrogen", "BUN", "Urea",
-        "eGFR", "Estimated GFR", "Glomerular Filtration Rate", "Uric Acid",
+        "eGFR", "Estimated GFR", "Glomerular Filtration Rate", "Uric Acid", "Serum Uric Acid",
         
-        # Electrolytes
+        # Electrolytes & Minerals
         "Sodium", "Potassium", "Chloride", "Calcium", "Phosphorus", "Magnesium",
         
         # Lipid Profile
@@ -101,6 +101,8 @@ class ExtractorService:
             metadata["reportName"] = "Thyroid Function Panel"
         elif re.search(r'(?i)\brenal\b|\bkidney\b', full_text):
             metadata["reportName"] = "Renal Function Panel"
+        elif re.search(r'(?i)\bliver function\b|\blft\b', full_text):
+            metadata["reportName"] = "Liver Function Panel"
 
         return metadata
 
@@ -112,6 +114,9 @@ class ExtractorService:
         tests: List[Dict[str, Any]] = []
         seen_names = set()
 
+        # Sort known biomarkers by length descending so longer phrases (e.g. Fasting Blood Glucose) match first
+        sorted_markers = sorted(cls.KNOWN_BIOMARKERS, key=len, reverse=True)
+
         for line in lines:
             line_clean = line.strip()
             # Ignore divider lines and header titles
@@ -119,17 +124,17 @@ class ExtractorService:
                 continue
 
             matched = False
-            for marker in cls.KNOWN_BIOMARKERS:
-                # Robust regex with optional reference range
+            for marker in sorted_markers:
+                # Robust regex with optional reference range and units
                 regex = re.compile(
                     rf'\b({re.escape(marker)})\b'
-                    r'[:\s\t]+'
+                    r'[:\s\t|]+'
                     r'([0-9.]+|Negative|Positive|Normal)'
-                    r'(?:\s*([a-zA-Z0-9/µ×%^]+(?:\^3/[µu]L)?))?'
+                    r'(?:\s*([a-zA-Z0-9/%^µuL-]+(?:\^3/[µu]L|\^6/[µu]L)?))?'
                     r'(?:.*?'
                     r'(?:ref(?:erence)?[:\s]*)?'
                     r'[\(\[]?'
-                    r'([<>]?\s*[0-9.]+\s*[-–—]\s*[0-9.]+|[<>=]+\s*[0-9.]+)'
+                    r'([<>]?\s*[0-9.]+\s*(?:[-–—~]|to)\s*[0-9.]+|[<>=]+\s*[0-9.]+)'
                     r'[\)\]]?)?',
                     re.IGNORECASE
                 )
@@ -139,6 +144,16 @@ class ExtractorService:
                     val_str = m.group(2).strip()
                     unit = (m.group(3) or "").strip()
                     ref_str = (m.group(4) or "").strip() if m.group(4) else None
+
+                    # If reference range was not matched by group 4, try searching for any range pattern on the line
+                    if not ref_str:
+                        ref_search = re.search(
+                            r'(?:ref(?:erence)?(?:\s*range)?[:\s]*)?[\(\[]?([<>]?\s*\d+(?:\.\d+)?\s*(?:[-–—~]|to)\s*\d+(?:\.\d+)?|[<>=]+\s*\d+(?:\.\d+)?)[\)\]]?',
+                            line_clean[m.end(2):],
+                            re.IGNORECASE
+                        )
+                        if ref_search:
+                            ref_str = ref_search.group(1).strip()
 
                     if test_name.lower() not in seen_names:
                         min_r, max_r = cls._parse_range_bounds(ref_str)
@@ -162,19 +177,19 @@ class ExtractorService:
             if not matched:
                 generic_regex = re.compile(
                     r'^(?P<name>[A-Za-z0-9\s/(),.-]+?)'
-                    r'[:\t\s]+'
+                    r'[:\t\s|]+'
                     r'(?P<value>\d+(?:\.\d+)?|Negative|Positive|Normal)'
-                    r'(?:\s+(?P<unit>[a-zA-Z0-9/µ×%^]+(?:\^3/[µu]L)?))?'
+                    r'(?:\s+(?P<unit>[a-zA-Z0-9/%^µuL-]+(?:\^3/[µu]L|\^6/[µu]L)?))?'
                     r'(?:.*?'
                     r'(?:ref(?:erence)?[:\s]*)?'
                     r'[\(\[]?'
-                    r'(?P<range>[<>]?\s*\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?|[<>=]+\s*\d+(?:\.\d+)?)'
+                    r'(?P<range>[<>]?\s*\d+(?:\.\d+)?\s*(?:[-–—~]|to)\s*\d+(?:\.\d+)?|[<>=]+\s*\d+(?:\.\d+)?)'
                     r'[\)\]]?)?',
                     re.IGNORECASE
                 )
                 m_gen = generic_regex.search(line_clean)
                 if m_gen:
-                    t_name = m_gen.group("name").strip(" :-")
+                    t_name = m_gen.group("name").strip(" :-|")
                     val_str = m_gen.group("value").strip()
                     unit = (m_gen.group("unit") or "").strip()
                     ref_str = m_gen.group("range").strip() if m_gen.group("range") else None
@@ -209,13 +224,15 @@ class ExtractorService:
         if not ref_range:
             return None, None
 
-        m_two = re.search(r'(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)', ref_range)
+        # Two bounds: e.g. 12.0 - 15.5, 12.0–15.5, 12.0 to 15.5
+        m_two = re.search(r'(\d+(?:\.\d+)?)\s*(?:[-–—~]|to)\s*(\d+(?:\.\d+)?)', ref_range, re.IGNORECASE)
         if m_two:
             try:
                 return float(m_two.group(1)), float(m_two.group(2))
             except ValueError:
                 pass
 
+        # Upper bound only: e.g. < 200, <= 140, < 5.7
         m_upper = re.search(r'[<=]+\s*(\d+(?:\.\d+)?)', ref_range)
         if m_upper:
             try:
@@ -223,6 +240,7 @@ class ExtractorService:
             except ValueError:
                 pass
 
+        # Lower bound only: e.g. > 40, >= 90
         m_lower = re.search(r'[>=]+\s*(\d+(?:\.\d+)?)', ref_range)
         if m_lower:
             try:

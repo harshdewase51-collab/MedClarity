@@ -7,28 +7,37 @@ import {
   UploadCloud,
   LayoutGrid,
   List,
+  Trash2,
 } from 'lucide-react';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
 import Disclaimer from '../components/common/Disclaimer';
 
 export default function ReportHistory({
-  reports,
+  reports = [],
   language = 'en',
   onSelectReport,
   onNavigate,
+  onDeleteReport,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [viewMode, setViewMode] = useState('list');
+  const [deletingId, setDeletingId] = useState(null);
 
   const filteredReports = useMemo(() => {
-    return reports.filter((report) => {
+    return (reports || []).filter((report) => {
+      const nameStr = (report.name || report.reportName || '').toLowerCase();
+      const labStr = (report.labName || '').toLowerCase();
+      const doctorStr = (report.orderingPhysician || '').toLowerCase();
+      const dateStr = (report.date || report.reportDate || '').toLowerCase();
+      const q = searchQuery.toLowerCase();
+
       const matchQuery =
-        report.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.labName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.orderingPhysician?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        report.date.toLowerCase().includes(searchQuery.toLowerCase());
+        nameStr.includes(q) ||
+        labStr.includes(q) ||
+        doctorStr.includes(q) ||
+        dateStr.includes(q);
 
       let matchStatus = true;
       if (statusFilter === 'normal') {
@@ -41,6 +50,19 @@ export default function ReportHistory({
     });
   }, [reports, searchQuery, statusFilter]);
 
+  const handleDelete = async (e, report) => {
+    e.stopPropagation();
+    const repName = report.name || report.reportName || 'this report';
+    if (window.confirm(`Are you sure you want to delete "${repName}"? This will remove all extracted tests and explanations.`)) {
+      try {
+        setDeletingId(report.id || report.reportId);
+        await onDeleteReport?.(report.id || report.reportId);
+      } finally {
+        setDeletingId(null);
+      }
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-5xl mx-auto pb-12">
       {/* Header */}
@@ -49,7 +71,7 @@ export default function ReportHistory({
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
             <button
               onClick={() => onNavigate('dashboard')}
-              className="hover:text-slate-900"
+              className="hover:text-slate-900 cursor-pointer"
             >
               Dashboard
             </button>
@@ -66,7 +88,7 @@ export default function ReportHistory({
 
         <button
           onClick={() => onNavigate('upload')}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-sm transition-colors self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm shadow-sm transition-colors self-start sm:self-auto cursor-pointer"
         >
           <UploadCloud className="w-4 h-4" />
           <span>Upload New Report</span>
@@ -82,7 +104,7 @@ export default function ReportHistory({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search reports by name or lab..."
+              placeholder="Search reports by name, lab, or test..."
               className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
             />
           </div>
@@ -92,33 +114,33 @@ export default function ReportHistory({
             <div className="flex items-center p-1 bg-slate-100 rounded-xl text-xs font-semibold">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'all'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                All ({reports.length})
+                All ({(reports || []).length})
               </button>
               <button
                 onClick={() => setStatusFilter('attention')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'attention'
                     ? 'bg-white text-amber-800 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Abnormal ({reports.filter((r) => r.status === 'attention').length})
+                Abnormal ({(reports || []).filter((r) => r.status === 'attention').length})
               </button>
               <button
                 onClick={() => setStatusFilter('normal')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'normal'
                     ? 'bg-white text-emerald-800 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Normal ({reports.filter((r) => r.status === 'normal').length})
+                Normal ({(reports || []).filter((r) => r.status === 'normal').length})
               </button>
             </div>
 
@@ -126,7 +148,7 @@ export default function ReportHistory({
             <div className="hidden md:flex items-center p-1 bg-slate-100 rounded-xl text-slate-500">
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-all ${
+                className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                   viewMode === 'list'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'hover:text-slate-900'
@@ -137,7 +159,7 @@ export default function ReportHistory({
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-all ${
+                className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                   viewMode === 'grid'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'hover:text-slate-900'
@@ -167,10 +189,12 @@ export default function ReportHistory({
               typeof report.summary === 'object'
                 ? report.summary[language] || report.summary.en
                 : report.summary;
+            const repId = report.id || report.reportId;
+            const isDeleting = deletingId === repId;
 
             return (
               <div
-                key={report.id}
+                key={repId}
                 className="bg-white rounded-3xl border border-slate-200 p-6 shadow-soft hover:border-slate-300 transition-all flex flex-col justify-between"
               >
                 <div className="space-y-3">
@@ -178,7 +202,17 @@ export default function ReportHistory({
                     <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
                       <FileText className="w-4 h-4" />
                     </div>
-                    <StatusBadge status={report.status} size="sm" />
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={report.status} size="sm" />
+                      <button
+                        onClick={(e) => handleDelete(e, report)}
+                        disabled={isDeleting}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Delete report"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -189,11 +223,11 @@ export default function ReportHistory({
                       }}
                       className="text-base font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors"
                     >
-                      {report.name}
+                      {report.name || report.reportName}
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
                       <Calendar className="w-3.5 h-3.5" />
-                      <span>{report.date}</span>
+                      <span>{report.date || report.reportDate}</span>
                       <span>•</span>
                       <span>{report.labName}</span>
                     </div>
@@ -216,7 +250,7 @@ export default function ReportHistory({
                       onSelectReport(report);
                       onNavigate('details');
                     }}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
                   >
                     View Details
                   </button>
@@ -225,7 +259,7 @@ export default function ReportHistory({
                       onSelectReport(report);
                       onNavigate('results');
                     }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
                   >
                     <span>View Report</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -243,10 +277,12 @@ export default function ReportHistory({
                 typeof report.summary === 'object'
                   ? report.summary[language] || report.summary.en
                   : report.summary;
+              const repId = report.id || report.reportId;
+              const isDeleting = deletingId === repId;
 
               return (
                 <div
-                  key={report.id}
+                  key={repId}
                   className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col md:flex-row md:items-center md:justify-between gap-4"
                 >
                   <div className="flex items-start gap-3.5 flex-1 min-w-0">
@@ -262,7 +298,7 @@ export default function ReportHistory({
                           }}
                           className="text-sm sm:text-base font-bold text-slate-900 hover:text-blue-600 cursor-pointer truncate"
                         >
-                          {report.name}
+                          {report.name || report.reportName}
                         </h4>
                         <StatusBadge status={report.status} size="sm" />
                       </div>
@@ -270,7 +306,7 @@ export default function ReportHistory({
                       <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          {report.date}
+                          {report.date || report.reportDate}
                         </span>
                         <span>•</span>
                         <span>{report.labName}</span>
@@ -290,7 +326,7 @@ export default function ReportHistory({
                         onSelectReport(report);
                         onNavigate('details');
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-colors"
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-colors cursor-pointer"
                     >
                       Details
                     </button>
@@ -299,10 +335,18 @@ export default function ReportHistory({
                         onSelectReport(report);
                         onNavigate('results');
                       }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
                     >
                       <span>View Report</span>
                       <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(e, report)}
+                      disabled={isDeleting}
+                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-1"
+                      title="Delete report"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
