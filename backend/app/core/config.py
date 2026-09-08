@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # Uploads & Storage
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads")
     MAX_FILE_SIZE_MB: int = 25
-    ALLOWED_EXTENSIONS: List[str] = ["pdf", "png", "jpg", "jpeg", "txt"]
+    ALLOWED_EXTENSIONS: List[str] = ["pdf", "png", "jpg", "jpeg", "webp", "txt"]
 
     # Database
     DATABASE_URL: str = "sqlite:///./medical_reports.db"
@@ -42,4 +42,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Ensure uploads directory exists
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+except OSError:
+    pass

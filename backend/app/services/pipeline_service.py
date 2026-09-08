@@ -31,7 +31,7 @@ class PipelineService:
                     return ocr_text
             return text
 
-        elif ext in ('png', 'jpg', 'jpeg'):
+        elif ext in ('png', 'jpg', 'jpeg', 'webp'):
             ocr_text, conf = OCRService.extract_text_from_image(file_path)
             return ocr_text
 

@@ -53,11 +53,12 @@ def root():
 
 @app.get("/api/health", tags=["Health"])
 def health_check():
+    from app.services.file_service import FileService
     return {
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
         "aiProvider": settings.AI_PROVIDER,
-        "uploadDir": settings.UPLOAD_DIR
+        "uploadDir": FileService.get_upload_dir()
     }
 
 if __name__ == "__main__":
