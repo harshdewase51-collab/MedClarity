@@ -30,11 +30,50 @@ class ExtractorService:
         "Total Cholesterol", "Cholesterol", "Triglycerides", "HDL Cholesterol", "HDL",
         "LDL Cholesterol", "LDL", "VLDL Cholesterol", "VLDL", "Non-HDL Cholesterol",
         
-        # Thyroid & Vitamins
+        # Thyroid & Hormones
         "TSH", "Thyroid Stimulating Hormone", "Free T3", "Free T4", "Total T3", "Total T4",
+        "FSH", "Follicle Stimulating Hormone", "Prolactin", "LH", "Luteinizing Hormone",
+        "Testosterone", "Total Testosterone", "Free Testosterone", "Estradiol", "Estrogen",
+        "Progesterone", "Cortisol", "DHEA-S", "PSA", "Total PSA",
+        
+        # Vitamins & Inflammation
         "Vitamin D", "Vitamin D3", "Vitamin D, 25-Hydroxy", "25-OH Vitamin D",
-        "Vitamin B12", "Ferritin", "Iron", "TIBC"
+        "Vitamin B12", "Ferritin", "Iron", "TIBC", "ESR", "CRP", "C-Reactive Protein"
     ]
+
+    DISALLOWED_WORDS = (
+        r'(?i)\b(?:page|patient|doctor|date|phone|lab|sample|address|floor|road|'
+        r'nagpur|enclave|opp|school|hospital|ph\b|tel\b|www\b|http|verified|authorised|'
+        r'interpretation|notes|method|technology|comment|investigation|finding|'
+        r'biological|reference|specimen|collection|release|adequacy|affiliation|'
+        r'dr\b|mrs\b|mr\b|md\b|ms\b|cmia|clia|eia|elisa|sm\b|end of|centre|center|dhruv|'
+        r'laxminagar|ramdaspeth|follicular|luteal|mid-cycle|midcycle|ovulatory|ovulation|'
+        r'phase|peak|post-menopausal|pre-menopausal|postmenopausal|premenopausal|'
+        r'menopause|menopausal|adult male|adult female|male|female|trimester|'
+        r'pregnancy|pediatric|children|interval|cutoff|cut-off|normal values)\b'
+    )
+
+    @classmethod
+    def _is_valid_test_name(cls, name: str) -> bool:
+        if not name:
+            return False
+        clean = name.strip(" :-|*#\t").strip()
+        if len(clean) < 2 or len(clean) > 45:
+            return False
+        # Must have at least 2 alphabetic characters
+        letters = sum(1 for c in clean if c.isalpha())
+        if letters < 2:
+            return False
+        # Cannot be pure numbers or numbers with hyphens/comparison
+        if re.match(r'^[0-9.<>=\s\-~]+$', clean):
+            return False
+        # Cannot end with comparison or preposition words
+        if re.search(r'(?i)\b(?:to|from|than|below|above|ref|range|approx|phase|peak)\b\s*$', clean):
+            return False
+        # Disallow noise words
+        if re.search(cls.DISALLOWED_WORDS, clean):
+            return False
+        return True
 
     @classmethod
     def extract_structured_data(cls, raw_text: str) -> Dict[str, Any]:
@@ -75,15 +114,19 @@ class ExtractorService:
         }
 
         # Date regex patterns
-        date_pattern = r'(?i)\b(?:date|collected|reported|sample date)?[:\s]*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b'
+        date_pattern = r'(?i)\b(?:date|collected|reported|sample date)?[:\s\uff1a]*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})\b'
         date_match = re.search(date_pattern, full_text)
         if date_match:
             metadata["reportDate"] = date_match.group(1).strip()
 
-        # Patient name pattern
-        patient_match = re.search(r'(?i)\b(?:patient(?:\s+name)?|name)[:\s]+([A-Za-z]+(?:[ \t]+[A-Za-z]+)+)', full_text)
+        # Patient name pattern (supports standard : and full-width colon ：)
+        patient_match = re.search(r'(?i)\bpatient(?:\s*name)?\s*[:\uff1a\t]+\s*([A-Za-z.\s]{2,40})', full_text)
         if patient_match:
-            metadata["patientName"] = patient_match.group(1).strip()
+            raw_p = patient_match.group(1).strip()
+            # Clean off trailing words like Date, Age, Gender if merged
+            raw_p = re.split(r'(?i)\b(?:date|age|gender|ref|sample)\b', raw_p)[0].strip()
+            if len(raw_p) >= 2:
+                metadata["patientName"] = raw_p
 
         # Lab name pattern
         lab_match = re.search(r'(?i)\b([A-Za-z0-9\s&]+(?:Diagnostics|Laboratory|Laboratories|Pathology|Hospital|Health Lab|Clinical Lab|Labs|Lab))\b', full_text)
@@ -99,6 +142,8 @@ class ExtractorService:
             metadata["reportName"] = "Comprehensive Lipid Profile"
         elif re.search(r'(?i)\bthyroid\b|\btsh\b', full_text):
             metadata["reportName"] = "Thyroid Function Panel"
+        elif re.search(r'(?i)\bfollicle\b|\bfsh\b|\bprolactin\b|\bhormone\b', full_text):
+            metadata["reportName"] = "Hormone & Endocrine Evaluation Report"
         elif re.search(r'(?i)\brenal\b|\bkidney\b', full_text):
             metadata["reportName"] = "Renal Function Panel"
         elif re.search(r'(?i)\bliver function\b|\blft\b', full_text):
@@ -110,70 +155,131 @@ class ExtractorService:
     def _extract_biomarker_tests(cls, lines: List[str]) -> List[Dict[str, Any]]:
         """
         Parses test results line by line using clinical regex extraction.
+        Supports both single-line and multiline tabular extraction.
         """
         tests: List[Dict[str, Any]] = []
         seen_names = set()
+        consumed_indices = set()
 
-        # Sort known biomarkers by length descending so longer phrases (e.g. Fasting Blood Glucose) match first
         sorted_markers = sorted(cls.KNOWN_BIOMARKERS, key=len, reverse=True)
 
-        for line in lines:
+        for idx, line in enumerate(lines):
+            if idx in consumed_indices:
+                continue
+
             line_clean = line.strip()
             # Ignore divider lines and header titles
             if line_clean.startswith("---") or re.match(r'(?i)^test\s+(?:name|result)', line_clean):
                 continue
 
+            clean_marker_line = re.sub(r'^[\s*#\-•]+', '', line_clean).strip()
             matched = False
+
+            # 1. Known Biomarkers Matching
             for marker in sorted_markers:
-                # Robust regex with optional reference range and units
-                regex = re.compile(
-                    rf'\b({re.escape(marker)})\b'
-                    r'[:\s\t|]+'
-                    r'([0-9.]+|Negative|Positive|Normal)'
-                    r'(?:\s*([a-zA-Z0-9/%^µuL-]+(?:\^3/[µu]L|\^6/[µu]L)?))?'
-                    r'(?:.*?'
-                    r'(?:ref(?:erence)?[:\s]*)?'
-                    r'[\(\[]?'
-                    r'([<>]?\s*[0-9.]+\s*(?:[-–—~]|to)\s*[0-9.]+|[<>=]+\s*[0-9.]+)'
-                    r'[\)\]]?)?',
-                    re.IGNORECASE
-                )
-                m = regex.search(line_clean)
-                if m:
-                    test_name = m.group(1).strip()
-                    val_str = m.group(2).strip()
-                    unit = (m.group(3) or "").strip()
-                    ref_str = (m.group(4) or "").strip() if m.group(4) else None
+                # Check if this line starts with or cleanly contains the marker
+                if re.search(rf'^{re.escape(marker)}\b', clean_marker_line, re.IGNORECASE) or \
+                   re.search(rf'\b({re.escape(marker)})\b[:\s\t|]+[0-9.]+', line_clean, re.IGNORECASE):
+                    
+                    # Try single-line match first
+                    regex = re.compile(
+                        rf'\b({re.escape(marker)})\b'
+                        r'[:\s\t|]+'
+                        r'([0-9.]+|Negative|Positive|Normal)'
+                        r'(?:\s*([a-zA-Z0-9/%^µuL-]+(?:\^3/[µu]L|\^6/[µu]L)?))?'
+                        r'(?:.*?'
+                        r'(?:ref(?:erence)?[:\s]*)?'
+                        r'[\(\[]?'
+                        r'([<>]?\s*[0-9.]+\s*(?:[-–—~]|to)\s*[0-9.]+|[<>=]+\s*[0-9.]+)'
+                        r'[\)\]]?)?',
+                        re.IGNORECASE
+                    )
+                    m = regex.search(line_clean)
+                    
+                    if m:
+                        test_name = m.group(1).strip()
+                        val_str = m.group(2).strip()
+                        unit = (m.group(3) or "").strip()
+                        ref_str = (m.group(4) or "").strip() if m.group(4) else None
 
-                    # If reference range was not matched by group 4, try searching for any range pattern on the line
-                    if not ref_str:
-                        ref_search = re.search(
-                            r'(?:ref(?:erence)?(?:\s*range)?[:\s]*)?[\(\[]?([<>]?\s*\d+(?:\.\d+)?\s*(?:[-–—~]|to)\s*\d+(?:\.\d+)?|[<>=]+\s*\d+(?:\.\d+)?)[\)\]]?',
-                            line_clean[m.end(2):],
-                            re.IGNORECASE
-                        )
-                        if ref_search:
-                            ref_str = ref_search.group(1).strip()
+                        if not ref_str:
+                            ref_search = re.search(
+                                r'(?:ref(?:erence)?(?:\s*range)?[:\s]*)?[\(\[]?([<>]?\s*\d+(?:\.\d+)?\s*(?:[-–—~]|to)\s*\d+(?:\.\d+)?|[<>=]+\s*\d+(?:\.\d+)?)[\)\]]?',
+                                line_clean[m.end(2):],
+                                re.IGNORECASE
+                            )
+                            if ref_search:
+                                ref_str = ref_search.group(1).strip()
 
-                    if test_name.lower() not in seen_names:
-                        min_r, max_r = cls._parse_range_bounds(ref_str)
-                        numeric_val = cls._parse_float(val_str)
+                        if test_name.lower() not in seen_names:
+                            min_r, max_r = cls._parse_range_bounds(ref_str)
+                            numeric_val = cls._parse_float(val_str)
+                            tests.append({
+                                "testName": test_name,
+                                "value": val_str,
+                                "numericValue": numeric_val,
+                                "unit": unit,
+                                "referenceRange": ref_str,
+                                "minRange": min_r,
+                                "maxRange": max_r,
+                                "rawLine": line_clean
+                            })
+                            seen_names.add(test_name.lower())
+                            matched = True
+                            break
 
-                        tests.append({
-                            "testName": test_name,
-                            "value": val_str,
-                            "numericValue": numeric_val,
-                            "unit": unit,
-                            "referenceRange": ref_str,
-                            "minRange": min_r,
-                            "maxRange": max_r,
-                            "rawLine": line_clean
-                        })
-                        seen_names.add(test_name.lower())
-                        matched = True
-                        break
+                    # Multiline match: Value is on the next line (e.g. scanned tabular reports like SAimom.pdf)
+                    elif idx + 1 < len(lines):
+                        next_line = lines[idx + 1].strip()
+                        m_val_next = re.match(r'^([0-9.]+)(?:\s*([a-zA-Z0-9/%^µuL-]+))?$', next_line)
+                        if m_val_next:
+                            val_str = m_val_next.group(1)
+                            unit = m_val_next.group(2) or ""
+                            ref_str = None
+                            consumed_indices.add(idx + 1)
 
-            # If no known biomarker matched, try matching generic value and optional range
+                            # Scan subsequent lines for reference range and consume phase/interval/method lines
+                            for j in range(idx + 2, min(idx + 16, len(lines))):
+                                sub_line = lines[j].strip()
+                                # Stop if another test marker begins
+                                if any(re.match(rf'^[*\s]*{re.escape(k)}\b', sub_line, re.IGNORECASE) for k in sorted_markers):
+                                    break
+                                
+                                # Check if line is part of reference ranges, phases, methods, or demographic intervals
+                                is_phase_or_subrange = bool(
+                                    re.search(r'(?i)\b(?:phase|peak|menopausal|post-menopausal|adult|male|female|cmia|clia|eia|elisa|method|biological|ref|interpretation|comment)\b', sub_line) or
+                                    re.match(r'^[0-9.<>=\s\-~to]+(?:\s*[a-zA-Z0-9/%^µuL-]+)?$', sub_line) or
+                                    re.search(r':\s*[0-9.]+', sub_line)
+                                )
+                                if is_phase_or_subrange:
+                                    consumed_indices.add(j)
+
+                                m_ref = re.search(r'([<>]?\s*[0-9.]+\s*(?:[-–—~]|to)\s*[0-9.]+|[<>=]+\s*[0-9.]+)(?:\s*([a-zA-Z0-9/%^µuL-]+))?', sub_line)
+                                if m_ref:
+                                    # Pick the first range or prefer female/post-menopausal specific range
+                                    if not ref_str or "post-menopausal" in sub_line.lower() or "female" in sub_line.lower():
+                                        ref_str = m_ref.group(1)
+                                        if not unit and m_ref.group(2):
+                                            unit = m_ref.group(2)
+
+                            if marker.lower() not in seen_names:
+                                min_r, max_r = cls._parse_range_bounds(ref_str)
+                                numeric_val = cls._parse_float(val_str)
+                                tests.append({
+                                    "testName": marker,
+                                    "value": val_str,
+                                    "numericValue": numeric_val,
+                                    "unit": unit,
+                                    "referenceRange": ref_str,
+                                    "minRange": min_r,
+                                    "maxRange": max_r,
+                                    "rawLine": f"{line_clean} | {next_line}"
+                                })
+                                seen_names.add(marker.lower())
+                                matched = True
+                                break
+
+            # 2. Generic Regex Matching (fallback for non-dictionary tests)
             if not matched:
                 generic_regex = re.compile(
                     r'^(?P<name>[A-Za-z0-9\s/(),.-]+?)'
@@ -189,12 +295,13 @@ class ExtractorService:
                 )
                 m_gen = generic_regex.search(line_clean)
                 if m_gen:
-                    t_name = m_gen.group("name").strip(" :-|")
+                    t_name = m_gen.group("name").strip(" :-|*#\t")
                     val_str = m_gen.group("value").strip()
                     unit = (m_gen.group("unit") or "").strip()
                     ref_str = m_gen.group("range").strip() if m_gen.group("range") else None
 
-                    if len(t_name) >= 2 and len(t_name) <= 50 and not re.search(r'(?i)\bpage|patient|doctor|date|phone|lab|sample\b', t_name):
+                    # Strict filter: Must be a genuine test name, not a phase, interval, or address
+                    if cls._is_valid_test_name(t_name):
                         if t_name.lower() not in seen_names:
                             min_r, max_r = cls._parse_range_bounds(ref_str)
                             numeric_val = cls._parse_float(val_str)
@@ -240,7 +347,7 @@ class ExtractorService:
             except ValueError:
                 pass
 
-        # Lower bound only: e.g. > 40, >= 90
+        # Lower bound only: e.g. > 60, >= 50
         m_lower = re.search(r'[>=]+\s*(\d+(?:\.\d+)?)', ref_range)
         if m_lower:
             try:

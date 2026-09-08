@@ -43,7 +43,7 @@ export default function ReportHistory({
       if (statusFilter === 'normal') {
         matchStatus = report.status === 'normal';
       } else if (statusFilter === 'attention') {
-        matchStatus = report.status === 'attention';
+        matchStatus = report.status === 'attention' || report.status === 'abnormal';
       }
 
       return matchQuery && matchStatus;
@@ -64,24 +64,24 @@ export default function ReportHistory({
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
             <button
               onClick={() => onNavigate('dashboard')}
-              className="hover:text-slate-900 cursor-pointer"
+              className="hover:text-slate-900 dark:hover:text-white cursor-pointer"
             >
               Dashboard
             </button>
             <span>/</span>
-            <span className="text-slate-900 font-bold">Report History</span>
+            <span className="text-slate-900 dark:text-white font-bold">Report History</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Previous Medical Reports
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             View previously analyzed laboratory reports and AI simplified explanations.
           </p>
         </div>
@@ -96,28 +96,28 @@ export default function ReportHistory({
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-soft space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-soft space-y-3.5 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search reports by name, lab, or test..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+              placeholder="Search reports by name or lab..."
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"
             />
           </div>
 
-          <div className="flex items-center gap-3 self-end sm:self-auto">
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
             {/* Status tabs */}
-            <div className="flex items-center p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
               <button
                 onClick={() => setStatusFilter('all')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'all'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 All ({(reports || []).length})
@@ -126,32 +126,32 @@ export default function ReportHistory({
                 onClick={() => setStatusFilter('attention')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'attention'
-                    ? 'bg-white text-amber-800 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-700 text-amber-800 dark:text-amber-300 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Abnormal ({(reports || []).filter((r) => r.status === 'attention').length})
+                Abnormal
               </button>
               <button
                 onClick={() => setStatusFilter('normal')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'normal'
-                    ? 'bg-white text-emerald-800 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-700 text-emerald-800 dark:text-emerald-300 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                Normal ({(reports || []).filter((r) => r.status === 'normal').length})
+                Normal
               </button>
             </div>
 
-            {/* List vs Grid view */}
-            <div className="hidden md:flex items-center p-1 bg-slate-100 rounded-xl text-slate-500">
+            {/* List vs Grid view (hidden on small mobile) */}
+            <div className="hidden sm:flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400">
               <button
                 onClick={() => setViewMode('list')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                   viewMode === 'list'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="List view"
               >
@@ -161,8 +161,8 @@ export default function ReportHistory({
                 onClick={() => setViewMode('grid')}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                   viewMode === 'grid'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'hover:text-slate-900 dark:hover:text-white'
                 }`}
                 title="Grid view"
               >
@@ -178,12 +178,12 @@ export default function ReportHistory({
         <EmptyState
           icon={FileText}
           title="No Medical Reports Found"
-          description="We couldn't find any reports matching your search query or status filter. Try clearing the filters or upload a new report."
+          description="We couldn't find any reports matching your search query or filter. Try clearing the filter or upload a new report."
           actionText="Upload Medical Report"
           onAction={() => onNavigate('upload')}
         />
       ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {filteredReports.map((report) => {
             const sum =
               typeof report.summary === 'object'
@@ -195,11 +195,11 @@ export default function ReportHistory({
             return (
               <div
                 key={repId}
-                className="bg-white rounded-3xl border border-slate-200 p-6 shadow-soft hover:border-slate-300 transition-all flex flex-col justify-between"
+                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-soft hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between"
               >
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-800">
                       <FileText className="w-4 h-4" />
                     </div>
                     <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export default function ReportHistory({
                       <button
                         onClick={(e) => handleDelete(e, report)}
                         disabled={isDeleting}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
                         title="Delete report"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -221,11 +221,11 @@ export default function ReportHistory({
                         onSelectReport(report);
                         onNavigate('results');
                       }}
-                      className="text-base font-bold text-slate-900 hover:text-blue-600 cursor-pointer transition-colors"
+                      className="text-sm sm:text-base font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors"
                     >
                       {report.name || report.reportName}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 mt-1">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{report.date || report.reportDate}</span>
                       <span>•</span>
@@ -233,24 +233,24 @@ export default function ReportHistory({
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                     {sum}
                   </p>
 
-                  <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
+                  <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 pt-1">
                     <span>Tests: <strong>{report.totalTests}</strong></span>
-                    <span className="text-emerald-700">Normal: <strong>{report.normalCount}</strong></span>
-                    <span className="text-amber-700">Abnormal: <strong>{report.abnormalCount}</strong></span>
+                    <span className="text-emerald-700 dark:text-emerald-400">Normal: <strong>{report.normalCount}</strong></span>
+                    <span className="text-amber-700 dark:text-amber-400">Abnormal: <strong>{report.abnormalCount}</strong></span>
                   </div>
                 </div>
 
-                <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                   <button
                     onClick={() => {
                       onSelectReport(report);
                       onNavigate('details');
                     }}
-                    className="text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                    className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                   >
                     View Details
                   </button>
@@ -259,7 +259,7 @@ export default function ReportHistory({
                       onSelectReport(report);
                       onNavigate('results');
                     }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors cursor-pointer"
                   >
                     <span>View Report</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -270,8 +270,8 @@ export default function ReportHistory({
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-soft overflow-hidden">
-          <div className="divide-y divide-slate-100">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-soft overflow-hidden transition-colors">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
             {filteredReports.map((report) => {
               const sum =
                 typeof report.summary === 'object'
@@ -283,10 +283,10 @@ export default function ReportHistory({
               return (
                 <div
                   key={repId}
-                  className="p-5 hover:bg-slate-50/60 transition-colors flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                  className="p-4 sm:p-5 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors flex flex-col md:flex-row md:items-center md:justify-between gap-3.5"
                 >
                   <div className="flex items-start gap-3.5 flex-1 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 mt-0.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-800 mt-0.5">
                       <FileText className="w-4 h-4" />
                     </div>
                     <div className="space-y-1 min-w-0">
@@ -296,16 +296,16 @@ export default function ReportHistory({
                             onSelectReport(report);
                             onNavigate('results');
                           }}
-                          className="text-sm sm:text-base font-bold text-slate-900 hover:text-blue-600 cursor-pointer truncate"
+                          className="text-sm sm:text-base font-bold text-slate-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer truncate"
                         >
                           {report.name || report.reportName}
                         </h4>
                         <StatusBadge status={report.status} size="sm" />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+                      <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-500 dark:text-slate-400">
                         <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                          <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           {report.date || report.reportDate}
                         </span>
                         <span>•</span>
@@ -314,7 +314,7 @@ export default function ReportHistory({
                         <span>{report.totalTests} tests ({report.normalCount} normal, {report.abnormalCount} abnormal)</span>
                       </div>
 
-                      <p className="text-xs text-slate-600 line-clamp-1 pt-0.5">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1 pt-0.5">
                         {sum}
                       </p>
                     </div>
@@ -326,7 +326,7 @@ export default function ReportHistory({
                         onSelectReport(report);
                         onNavigate('details');
                       }}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-colors cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                     >
                       Details
                     </button>
@@ -337,13 +337,13 @@ export default function ReportHistory({
                       }}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm cursor-pointer"
                     >
-                      <span>View Report</span>
+                      <span>View</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => handleDelete(e, report)}
                       disabled={isDeleting}
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer ml-1"
+                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer ml-1"
                       title="Delete report"
                     >
                       <Trash2 className="w-4 h-4" />

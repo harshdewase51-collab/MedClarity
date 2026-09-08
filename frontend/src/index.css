@@ -3,10 +3,104 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-slate-50 text-slate-800 antialiased;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  :root {
+    color-scheme: light;
   }
+  
+  html.dark,
+  body.dark,
+  .dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #0f172a;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark body,
+  body.dark {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+  }
+}
+
+/* True High-Contrast Black Mode Overrides (#000000 / #0d0d0d / #ffffff) */
+html.dark,
+body.dark {
+  background-color: #000000 !important;
+}
+
+html.dark .bg-white,
+body.dark .bg-white {
+  background-color: #0d0d0d !important;
+}
+
+html.dark .bg-slate-50,
+body.dark .bg-slate-50,
+html.dark .bg-slate-50\/50,
+body.dark .bg-slate-50\/50,
+html.dark .bg-slate-50\/60,
+body.dark .bg-slate-50\/60,
+html.dark .bg-slate-50\/70,
+body.dark .bg-slate-50\/70,
+html.dark .bg-slate-50\/80,
+body.dark .bg-slate-50\/80,
+html.dark .bg-slate-50\/90,
+body.dark .bg-slate-50\/90 {
+  background-color: #171717 !important;
+}
+
+html.dark .bg-slate-100,
+body.dark .bg-slate-100 {
+  background-color: #212121 !important;
+}
+
+html.dark .border-slate-100,
+body.dark .border-slate-100,
+html.dark .border-slate-200,
+body.dark .border-slate-200,
+html.dark .border-slate-200\/60,
+body.dark .border-slate-200\/60,
+html.dark .border-slate-200\/70,
+body.dark .border-slate-200\/70,
+html.dark .border-slate-200\/80,
+body.dark .border-slate-200\/80,
+html.dark .border-slate-200\/90,
+body.dark .border-slate-200\/90,
+html.dark .border-slate-300,
+body.dark .border-slate-300 {
+  border-color: #27272a !important;
+}
+
+html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+body.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-100\/90 > :not([hidden]) ~ :not([hidden]),
+body.dark .divide-slate-100\/90 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #27272a !important;
+}
+
+html.dark .text-slate-900,
+body.dark .text-slate-900,
+html.dark .text-slate-800,
+body.dark .text-slate-800 {
+  color: #ffffff !important;
+}
+
+html.dark .text-slate-700,
+body.dark .text-slate-700,
+html.dark .text-slate-600,
+body.dark .text-slate-600 {
+  color: #e4e4e7 !important;
+}
+
+html.dark .text-slate-500,
+body.dark .text-slate-500,
+html.dark .text-slate-400,
+body.dark .text-slate-400 {
+  color: #a1a1aa !important;
 }
 
 /* Custom subtle scrollbar */
@@ -21,8 +115,16 @@
   background: #cbd5e1;
   border-radius: 9999px;
 }
+.dark ::-webkit-scrollbar-thumb,
+html.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+.dark ::-webkit-scrollbar-thumb:hover,
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
 }
 
 /* Shimmer animation for processing page */

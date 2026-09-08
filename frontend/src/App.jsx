@@ -1,55 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
+import MobileBottomNav from './components/layout/MobileBottomNav';
 import Dashboard from './pages/Dashboard';
 import UploadReport from './pages/UploadReport';
 import ProcessingPage from './pages/ProcessingPage';
 import ReportResults from './pages/ReportResults';
 import ReportDetails from './pages/ReportDetails';
-import ReportHistory from './pages/ReportHistory';
 import { reportService, normalizeReport } from './services/reportService';
-import { mockReports } from './data/mockReports';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [language, setLanguage] = useState('en'); // 'en' | 'hi' | 'hinglish'
-  const [reports, setReports] = useState(() => mockReports.map(normalizeReport));
-  const [activeReport, setActiveReport] = useState(() => normalizeReport(mockReports[0]));
-  const [currentProcessingFile, setCurrentProcessingFile] = useState(null);
-  const [isLoadingReports, setIsLoadingReports] = useState(false);
 
-  // Load real report history on mount
+  // Ephemeral, session-only reports for privacy. No public report history or mock leaks.
+  const [reports, setReports] = useState([]);
+  const [activeReport, setActiveReport] = useState(null);
+  const [currentProcessingFile, setCurrentProcessingFile] = useState(null);
+
+  // Theme Management (White Mode / Black Mode)
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  });
+
   useEffect(() => {
-    let isMounted = true;
-    const fetchInitialReports = async () => {
-      setIsLoadingReports(true);
-      try {
-        const liveReports = await reportService.listReports();
-        if (isMounted && Array.isArray(liveReports) && liveReports.length > 0) {
-          setReports(liveReports);
-          setActiveReport(liveReports[0]);
-        }
-      } catch (err) {
-        console.warn('Could not load reports on mount, keeping fallback:', err);
-      } finally {
-        if (isMounted) setIsLoadingReports(false);
-      }
-    };
-    fetchInitialReports();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    const root = document.documentElement;
+    const body = document.body;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      body.classList.add('dark');
+      root.style.colorScheme = 'dark';
+      body.style.backgroundColor = '#000000';
+      body.style.color = '#ffffff';
+    } else {
+      root.classList.remove('dark');
+      body.classList.remove('dark');
+      root.style.colorScheme = 'light';
+      body.style.backgroundColor = '#ffffff';
+      body.style.color = '#0f172a';
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = (explicitTheme) => {
+    if (explicitTheme === 'dark' || explicitTheme === 'light') {
+      setTheme(explicitTheme);
+    } else {
+      setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    }
+  };
 
   const handleNavigate = (page) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSelectReport = (report) => {
-    const normalized = normalizeReport(report);
-    setActiveReport(normalized);
   };
 
   const handleStartProcessing = (fileOrText) => {
@@ -61,7 +70,7 @@ export default function App() {
   const handleProcessingComplete = (processedReport) => {
     if (processedReport) {
       const normalized = normalizeReport(processedReport);
-      setReports((prev) => [normalized, ...prev.filter((r) => r.id !== normalized.id)]);
+      setReports([normalized]);
       setActiveReport(normalized);
     }
     setCurrentPage('results');
@@ -69,13 +78,24 @@ export default function App() {
   };
 
   const handleViewDetails = (report) => {
-    const normalized = normalizeReport(report);
-    setActiveReport(normalized);
+    if (report) {
+      const normalized = normalizeReport(report);
+      setActiveReport(normalized);
+    }
     setCurrentPage('details');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Dynamic language translation
+  // Clear session: resets all in-memory report data and returns to dashboard
+  const handleClearSession = () => {
+    setActiveReport(null);
+    setReports([]);
+    setCurrentProcessingFile(null);
+    setCurrentPage('dashboard');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Dynamic language translation for active report
   const handleLanguageChange = async (newLang) => {
     setLanguage(newLang);
     if (!activeReport?.id) return;
@@ -93,58 +113,39 @@ export default function App() {
     }
   };
 
-  // Real report deletion
-  const handleDeleteReport = async (reportId) => {
-    try {
-      await reportService.deleteReport(reportId);
-      const updatedList = reports.filter((r) => r.id !== reportId && r.reportId !== reportId);
-      setReports(updatedList);
-      if (activeReport?.id === reportId || activeReport?.reportId === reportId) {
-        setActiveReport(updatedList[0] || null);
-      }
-    } catch (err) {
-      console.error('Delete error:', err);
-      alert(`Failed to delete report: ${err.message}`);
-    }
-  };
-
-  // Compute live summary statistics for Dashboard
-  const computedStats = {
-    totalReports: reports.length,
-    totalTestsAnalyzed: reports.reduce((acc, r) => acc + (r.totalTests || 0), 0),
-    normalResultsCount: reports.reduce((acc, r) => acc + (r.normalCount || 0), 0),
-    abnormalResultsCount: reports.reduce((acc, r) => acc + (r.abnormalCount || 0), 0),
-    lastUpdated: reports[0]?.date || 'Recent',
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar Navigation */}
+    <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-neutral-100 flex transition-colors duration-200">
+      {/* Sidebar Navigation (Desktop & Tablet Drawer) */}
       <Sidebar
         currentPage={currentPage}
         onNavigate={handleNavigate}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        hasActiveReport={!!activeReport}
+        onClearSession={handleClearSession}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header with Language Selector and Upload CTA */}
+        {/* Header with Theme Switcher (White/Black), Language Selector, and Upload CTA */}
         <Header
           onOpenSidebar={() => setSidebarOpen(true)}
           onNavigate={handleNavigate}
           language={language}
           onLanguageChange={handleLanguageChange}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto">
+        {/* Content container - extra bottom padding on mobile for MobileBottomNav */}
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto pb-24 md:pb-10 transition-colors duration-200">
           {currentPage === 'dashboard' && (
             <Dashboard
-              reports={reports}
-              stats={computedStats}
               language={language}
               onNavigate={handleNavigate}
-              onSelectReport={handleSelectReport}
+              onStartProcessing={handleStartProcessing}
             />
           )}
 
@@ -171,6 +172,8 @@ export default function App() {
               language={language}
               onNavigate={handleNavigate}
               onViewDetails={handleViewDetails}
+              onClearSession={handleClearSession}
+              onStartProcessing={handleStartProcessing}
             />
           )}
 
@@ -179,20 +182,20 @@ export default function App() {
               report={activeReport}
               language={language}
               onNavigate={handleNavigate}
-            />
-          )}
-
-          {currentPage === 'history' && (
-            <ReportHistory
-              reports={reports}
-              language={language}
-              onSelectReport={handleSelectReport}
-              onNavigate={handleNavigate}
-              onDeleteReport={handleDeleteReport}
+              onClearSession={handleClearSession}
             />
           )}
         </main>
       </div>
+
+      {/* Fixed Mobile Bottom Navigation Bar (< 768px) */}
+      <MobileBottomNav
+        currentPage={currentPage}
+        onNavigate={handleNavigate}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        hasActiveReport={!!activeReport}
+      />
     </div>
   );
 }
