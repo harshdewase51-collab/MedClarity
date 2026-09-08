@@ -24,11 +24,3 @@ MedClarity converts complex medical reports into simple, easy-to-understand lang
 **Backend:** Python, FastAPI, SQLAlchemy, SQLite  
 **Processing:** PDF/OCR, Medical Analysis, LLM
 
-## 📁 Structure
-
-```text
-MedClarity/
-├── backend/       # FastAPI backend & medical processing
-├── frontend/      # React frontend & UI
-├── start.bat      # Run project locally
-└── .gitignore
