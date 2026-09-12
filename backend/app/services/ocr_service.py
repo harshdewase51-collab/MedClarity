@@ -59,7 +59,15 @@ class OCRService:
                 for idx, page in enumerate(pdf.pages[:max_pages]):
                     # Render page to image
                     pil_image = page.to_image(resolution=200).original
-                    temp_img_path = f"{pdf_path}_temp_p{idx}.png"
+                    is_serverless = bool(
+                        os.environ.get("VERCEL")
+                        or os.environ.get("VERCEL_ENV")
+                        or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+                        or os.environ.get("LAMBDA_TASK_ROOT")
+                    )
+                    temp_dir = "/tmp" if is_serverless else os.path.dirname(pdf_path) or "/tmp"
+                    clean_basename = re.sub(r'[^a-zA-Z0-9_-]', '_', os.path.basename(pdf_path))
+                    temp_img_path = os.path.join(temp_dir, f"{clean_basename}_temp_p{idx}.png")
                     try:
                         pil_image.save(temp_img_path)
                         text, conf = cls.extract_text_from_image(temp_img_path)
@@ -69,7 +77,10 @@ class OCRService:
                             pages_processed += 1
                     finally:
                         if os.path.exists(temp_img_path):
-                            os.remove(temp_img_path)
+                            try:
+                                os.remove(temp_img_path)
+                            except Exception:
+                                pass
         except Exception as e:
             return "", 0.0
 

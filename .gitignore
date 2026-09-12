@@ -1,4 +1,4 @@
-﻿# ==========================================
+# ==========================================
 # MedClarity — Git Ignore Configuration
 # ==========================================
 
@@ -71,3 +71,6 @@ build/
 ehthumbs.db
 Thumbs.db
 [Dd]esktop.ini
+.vercel
+.env*
+!.env.example

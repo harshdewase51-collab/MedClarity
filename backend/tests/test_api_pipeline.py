@@ -173,3 +173,71 @@ def test_upload_empty_file_fails():
     assert res.status_code == 422
     assert res.json()["success"] is False
     assert "empty" in res.json()["error"]["message"].lower()
+
+def test_process_report_payload_and_validation():
+    # 1. Create a report via upload-text
+    payload = {
+        "text": SAMPLE_REPORT_TEXT,
+        "reportName": "Test Validation Report",
+        "language": "english"
+    }
+    create_res = client.post("/api/reports/upload-text", json=payload)
+    assert create_res.status_code == 201
+    report_id = create_res.json()["reportId"]
+
+    # 2. Process with body {"language": "en"}
+    res_en = client.post(f"/api/reports/{report_id}/process", json={"language": "en"})
+    assert res_en.status_code == 200
+    assert res_en.json()["language"] == "english"
+
+    # 3. Process with body {"language": "hi"}
+    res_hi = client.post(f"/api/reports/{report_id}/process", json={"language": "hi"})
+    assert res_hi.status_code == 200
+    assert res_hi.json()["language"] == "hindi"
+
+    # 4. Process with query ?language=hinglish
+    res_hing = client.post(f"/api/reports/{report_id}/process?language=hinglish")
+    assert res_hing.status_code == 200
+    assert res_hing.json()["language"] == "hinglish"
+
+    # 5. Invalid language in body returns 422
+    res_bad_body = client.post(f"/api/reports/{report_id}/process", json={"language": "invalid_lang"})
+    assert res_bad_body.status_code == 422
+
+    # 6. Invalid language in query returns 422
+    res_bad_query = client.post(f"/api/reports/{report_id}/process?language=invalid_lang")
+    assert res_bad_query.status_code == 422
+
+    # 7. Process with no body and no query returns 200 (defaults to english)
+    res_no_body = client.post(f"/api/reports/{report_id}/process")
+    assert res_no_body.status_code == 200
+    assert res_no_body.json()["language"] == "english"
+
+    # Clean up
+    client.delete(f"/api/reports/{report_id}")
+
+def test_health_endpoints_and_aliases():
+    res_api_health = client.get("/api/health")
+    assert res_api_health.status_code == 200
+    assert res_api_health.json()["status"] == "healthy"
+
+    res_health = client.get("/health")
+    assert res_health.status_code == 200
+    assert res_health.json()["status"] == "healthy"
+
+    res_api = client.get("/api")
+    assert res_api.status_code == 200
+    assert res_api.json()["status"] == "online"
+
+def test_vercel_api_entrypoint():
+    import sys
+    import os
+    root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if root_path not in sys.path:
+        sys.path.insert(0, root_path)
+    from api.index import app as vercel_app
+    from fastapi.testclient import TestClient as TC
+    vercel_client = TC(vercel_app)
+    res = vercel_client.get("/api/health")
+    assert res.status_code == 200
+    assert res.json()["status"] == "healthy"

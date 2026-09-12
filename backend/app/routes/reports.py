@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from app.database.session import get_db
@@ -6,9 +6,11 @@ from app.schemas.report import (
     ReportUploadResponse,
     ReportStatusResponse,
     ReportResponse,
+    ReportProcessRequest,
     ReportSimplifyRequest,
     TextUploadRequest,
-    ReportLanguage
+    ReportLanguage,
+    normalize_report_language
 )
 from app.controllers.report_controller import ReportController
 
@@ -22,6 +24,7 @@ router = APIRouter(prefix="/reports", tags=["Medical Reports"])
 )
 async def upload_report(
     file: UploadFile = File(..., description="PDF document or image scan (PNG, JPG)"),
+    language: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -44,10 +47,11 @@ async def upload_text(
     Directly processes pasted raw laboratory text and returns
     structured results with simple explanations.
     """
+    resolved_lang = normalize_report_language(payload.language)
     return await ReportController.upload_report_text(
         text=payload.text,
         report_name=payload.reportName or "Pasted Medical Report",
-        language=payload.language or ReportLanguage.ENGLISH,
+        language=resolved_lang,
         db=db
     )
 
@@ -58,14 +62,18 @@ async def upload_text(
 )
 def process_report(
     report_id: str,
-    language: ReportLanguage = ReportLanguage.ENGLISH,
+    payload: Optional[ReportProcessRequest] = None,
+    language: Optional[ReportLanguage] = None,
     db: Session = Depends(get_db)
 ):
     """
     Executes extraction (PDF parsing or OCR), biomarker analysis,
     and AI simple explanations on an uploaded report.
+    Accepts language in JSON request body or as a query parameter.
     """
-    return ReportController.process_report(report_id, language, db)
+    raw_lang = (payload.language if payload and payload.language else language) or ReportLanguage.ENGLISH
+    resolved_lang = normalize_report_language(raw_lang)
+    return ReportController.process_report(report_id, resolved_lang, db)
 
 @router.post(
     "/{report_id}/analyze",
@@ -74,13 +82,17 @@ def process_report(
 )
 def analyze_report(
     report_id: str,
-    language: ReportLanguage = ReportLanguage.ENGLISH,
+    payload: Optional[ReportProcessRequest] = None,
+    language: Optional[ReportLanguage] = None,
     db: Session = Depends(get_db)
 ):
     """
     Re-runs reference range comparisons and finding classification.
+    Accepts language in JSON request body or as a query parameter.
     """
-    return ReportController.process_report(report_id, language, db)
+    raw_lang = (payload.language if payload and payload.language else language) or ReportLanguage.ENGLISH
+    resolved_lang = normalize_report_language(raw_lang)
+    return ReportController.process_report(report_id, resolved_lang, db)
 
 @router.post(
     "/{report_id}/simplify",
@@ -89,14 +101,18 @@ def analyze_report(
 )
 def simplify_report(
     report_id: str,
-    payload: ReportSimplifyRequest,
+    payload: Optional[ReportSimplifyRequest] = None,
+    language: Optional[ReportLanguage] = None,
     db: Session = Depends(get_db)
 ):
     """
     Translates medical terminology and results into simple language
     in the requested language: English, Hindi, or Hinglish.
+    Accepts language in JSON request body or as a query parameter.
     """
-    return ReportController.process_report(report_id, payload.language, db)
+    raw_lang = (payload.language if payload and payload.language else language) or ReportLanguage.ENGLISH
+    resolved_lang = normalize_report_language(raw_lang)
+    return ReportController.process_report(report_id, resolved_lang, db)
 
 @router.get(
     "/{report_id}",

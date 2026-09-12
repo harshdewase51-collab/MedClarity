@@ -223,11 +223,24 @@ export const reportService = {
       // Step 2: Trigger extraction & processing pipeline on the uploaded report
       const processRes = await fetch(`${successfulBase}/${reportId}/process?language=${backendLang}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: backendLang }),
       });
 
       if (!processRes.ok) {
         const errJson = await processRes.json().catch(() => null);
-        const msg = errJson?.detail?.message || errJson?.detail || `Processing failed with HTTP ${processRes.status}`;
+        let msg = `Processing failed with HTTP ${processRes.status}`;
+        if (errJson) {
+          if (errJson.error?.message) {
+            msg = errJson.error.message;
+          } else if (errJson.detail?.message) {
+            msg = errJson.detail.message;
+          } else if (typeof errJson.detail === 'string') {
+            msg = errJson.detail;
+          } else if (Array.isArray(errJson.detail)) {
+            msg = errJson.detail.map((e) => e.msg || JSON.stringify(e)).join('; ');
+          }
+        }
         throw new Error(msg);
       }
 

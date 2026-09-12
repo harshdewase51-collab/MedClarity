@@ -12,18 +12,17 @@ def _resolve_database_url() -> str:
         or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
         or os.environ.get("LAMBDA_TASK_ROOT")
     )
-    if is_serverless and "sqlite" in url:
+    if is_serverless and "sqlite" in url and ":memory:" not in url:
         # Route relative SQLite database paths to /tmp to prevent read-only filesystem errors
-        if url.startswith("sqlite:///./") or url == "sqlite:///medical_reports.db":
-            tmp_db = "/tmp/medical_reports.db"
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            src_db = os.path.join(base_dir, "medical_reports.db")
-            if not os.path.exists(tmp_db) and os.path.exists(src_db):
-                try:
-                    shutil.copy2(src_db, tmp_db)
-                except Exception:
-                    pass
-            return f"sqlite:///{tmp_db}"
+        tmp_db = "/tmp/medical_reports.db"
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        src_db = os.path.join(base_dir, "medical_reports.db")
+        if not os.path.exists(tmp_db) and os.path.exists(src_db):
+            try:
+                shutil.copy2(src_db, tmp_db)
+            except Exception:
+                pass
+        return f"sqlite:///{tmp_db}"
     return url
 
 db_url = _resolve_database_url()

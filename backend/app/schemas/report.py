@@ -13,6 +13,20 @@ class ReportLanguage(str, Enum):
     ENGLISH = "english"
     HINDI = "hindi"
     HINGLISH = "hinglish"
+    EN = "en"
+    HI = "hi"
+
+def normalize_report_language(lang: Optional[Union[ReportLanguage, str]]) -> ReportLanguage:
+    """Normalizes language code or enum to canonical English, Hindi, or Hinglish"""
+    if not lang:
+        return ReportLanguage.ENGLISH
+    val = lang.value if isinstance(lang, ReportLanguage) else str(lang)
+    val = val.lower().strip()
+    if val in ("hi", "hindi"):
+        return ReportLanguage.HINDI
+    if val in ("hinglish",):
+        return ReportLanguage.HINGLISH
+    return ReportLanguage.ENGLISH
 
 class ProcessStatus(str, Enum):
     UPLOADED = "uploaded"
@@ -73,8 +87,17 @@ class ReportStatusResponse(BaseModel):
     createdAt: str
     updatedAt: str
 
+class ReportProcessRequest(BaseModel):
+    language: Optional[ReportLanguage] = Field(
+        default=ReportLanguage.ENGLISH,
+        description="Requested language for report analysis: english, hindi, hinglish (or en, hi)"
+    )
+
 class ReportSimplifyRequest(BaseModel):
-    language: ReportLanguage = Field(default=ReportLanguage.ENGLISH, description="Requested output language")
+    language: Optional[ReportLanguage] = Field(
+        default=ReportLanguage.ENGLISH,
+        description="Requested output language: english, hindi, hinglish (or en, hi)"
+    )
 
 class TextUploadRequest(BaseModel):
     text: str = Field(..., min_length=10, description="Raw medical report text to analyze")

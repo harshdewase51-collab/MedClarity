@@ -42,6 +42,7 @@ app.add_exception_handler(MedicalSimplifierException, medical_exception_handler)
 app.include_router(reports.router, prefix=settings.API_V1_STR)
 
 @app.get("/", tags=["Health"])
+@app.get("/api", tags=["Health"])
 def root():
     return {
         "status": "online",
@@ -51,6 +52,7 @@ def root():
         "health": "/api/health"
     }
 
+@app.get("/health", tags=["Health"])
 @app.get("/api/health", tags=["Health"])
 def health_check():
     from app.services.file_service import FileService
